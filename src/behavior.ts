@@ -57,7 +57,7 @@ interface LandingTarget {
  */
 export class BirdBehavior {
 	readonly #bird: Bird;
-	readonly #options: BehaviorOptions;
+	#options: BehaviorOptions;
 	readonly #flySpeed: number;
 
 	#currentState: State = States.IDLE;
@@ -131,6 +131,13 @@ export class BirdBehavior {
 		if (this.#frameRequest !== undefined) {
 			cancelAnimationFrame(this.#frameRequest);
 		}
+	}
+
+	/**
+	 * Change landing options. They apply the next time the bird picks somewhere to land.
+	 */
+	setOptions(options: BehaviorOptions): void {
+		this.#options = options;
 	}
 
 	pet(): void {

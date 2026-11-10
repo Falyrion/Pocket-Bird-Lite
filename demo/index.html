@@ -93,18 +93,29 @@
 			hatSelect.add(new Option(id, id));
 		}
 
+		const scaleSelect = document.getElementById("scale");
+		const currentOptions = () => ({ species: speciesSelect.value, hat: hatSelect.value, scale: Number(scaleSelect.value) });
+
 		let bird = createPocketBird();
 		window.pocketBird = bird;
 
+		// Start the pickers at the defaults from src/config.ts
+		const defaults = bird.getOptions();
+		speciesSelect.value = defaults.species;
+		hatSelect.value = defaults.hat;
+		scaleSelect.value = String(defaults.scale);
+
+		// Pickers change the running bird in place
+		const update = () => bird?.update(currentOptions());
+		speciesSelect.addEventListener("change", update);
+		hatSelect.addEventListener("change", update);
+		scaleSelect.addEventListener("change", update);
+
 		const recreate = () => {
 			bird?.destroy();
-			bird = createPocketBird({ species: speciesSelect.value, hat: hatSelect.value, scale: Number(scaleSelect.value) });
+			bird = createPocketBird(currentOptions());
 			window.pocketBird = bird;
 		};
-		const scaleSelect = document.getElementById("scale");
-		speciesSelect.addEventListener("change", recreate);
-		hatSelect.addEventListener("change", recreate);
-		scaleSelect.addEventListener("change", recreate);
 		document.getElementById("recreate").addEventListener("click", recreate);
 		document.getElementById("destroy").addEventListener("click", () => {
 			bird?.destroy();

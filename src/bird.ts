@@ -2,7 +2,7 @@ import { Directions, getLayerPixels, getWindowHeight, getFixedWindowHeight, type
 import Layer from "./animation/layer.ts";
 import Frame from "./animation/frame.ts";
 import Anim from "./animation/anim.ts";
-import { createHatLayers, type HatId } from "./hats.ts";
+import { createHatLayers, type HatId, type HatLayers } from "./hats.ts";
 
 const SPRITE_SIZE = 32;
 const CANVAS_PIXEL_SIZE = 1;
@@ -22,9 +22,11 @@ export type AnimationType = keyof typeof Animations;
 export class Bird {
 	readonly canvas: HTMLCanvasElement;
 	readonly #ctx: CanvasRenderingContext2D;
-	readonly #palette: Palette;
-	readonly #tags: readonly string[];
-	readonly #animations: Record<AnimationType, Anim>;
+	readonly #layers: BirdLayers;
+	readonly #hatSheet: PixelGrid;
+	#palette: Palette;
+	#tags: readonly string[];
+	#animations: Record<AnimationType, Anim>;
 
 	#animStart = Date.now();
 	#currentAnimation: AnimationType = Animations.STILL;
@@ -42,69 +44,15 @@ export class Bird {
 	 * @param hatId Hat to wear
 	 */
 	constructor(root: ShadowRoot, birdSheet: PixelGrid, hatSheet: PixelGrid, palette: Palette, speciesTags: readonly string[], hatId: HatId) {
+		this.#layers = createBirdLayers(birdSheet);
+		this.#hatSheet = hatSheet;
 		this.#palette = palette;
 		this.#tags = [...speciesTags, hatId];
-
-		/**
-		 * @param index Sprite index in the bird sheet
-		 * @param tag Only include this layer when the tag is active
-		 */
-		const layer = (index: number, tag?: string) => new Layer(getLayerPixels(birdSheet, index, SPRITE_SIZE), tag);
-
-		const layers = {
-			base: layer(0),
-			down: layer(1),
-			heartOne: layer(2),
-			heartTwo: layer(3),
-			heartThree: layer(4),
-			tuftBase: layer(5, "tuft"),
-			tuftDown: layer(6, "tuft"),
-			wingsUp: layer(7),
-			wingsDown: layer(8),
-			happyEye: layer(9),
-		};
-
-		const hat = createHatLayers(hatSheet, hatId);
-
-		const frames = {
-			base: new Frame([layers.base, layers.tuftBase, ...hat.base]),
-			headDown: new Frame([layers.down, layers.tuftDown, ...hat.down]),
-			wingsDown: new Frame([layers.base, layers.tuftBase, layers.wingsDown, ...hat.base]),
-			wingsUp: new Frame([layers.down, layers.tuftDown, layers.wingsUp, ...hat.down]),
-			heartOne: new Frame([layers.base, layers.tuftBase, layers.happyEye, ...hat.base, layers.heartOne]),
-			heartTwo: new Frame([layers.base, layers.tuftBase, layers.happyEye, ...hat.base, layers.heartTwo]),
-			heartThree: new Frame([layers.base, layers.tuftBase, layers.happyEye, ...hat.base, layers.heartThree]),
-		};
-
-		this.#animations = {
-			STILL: new Anim([frames.base], [1000]),
-			BOB: new Anim(
-				[frames.base, frames.headDown],
-				[420, 420]
-			),
-			FLYING: new Anim(
-				[frames.base, frames.wingsUp, frames.headDown, frames.wingsDown],
-				[30, 80, 30, 60]
-			),
-			HEART: new Anim(
-				[
-					frames.heartOne,
-					frames.heartTwo,
-					frames.heartThree,
-					frames.heartTwo,
-					frames.heartThree,
-					frames.heartTwo,
-					frames.heartThree,
-					frames.heartTwo,
-				],
-				[60, 80, 250, 250, 250, 250, 250, 250],
-				false
-			),
-		};
+		this.#animations = createAnimations(this.#layers, createHatLayers(hatSheet, hatId));
 
 		this.canvas = document.createElement("canvas");
 		this.canvas.id = "birb";
-		this.canvas.width = frames.base.getPixels()[0].length * CANVAS_PIXEL_SIZE;
+		this.canvas.width = SPRITE_SIZE * CANVAS_PIXEL_SIZE;
 		this.canvas.height = SPRITE_SIZE * CANVAS_PIXEL_SIZE;
 		const ctx = this.canvas.getContext("2d");
 		if (!ctx) {
@@ -113,6 +61,16 @@ export class Bird {
 		this.#ctx = ctx;
 
 		root.appendChild(this.canvas);
+	}
+
+	/**
+	 * Change species and hat in place. The current animation keeps playing and is redrawn on the next frame.
+	 */
+	setAppearance(palette: Palette, speciesTags: readonly string[], hatId: HatId): void {
+		this.#palette = palette;
+		this.#tags = [...speciesTags, hatId];
+		// New Anim instances have no cached frame, so the next draw() repaints
+		this.#animations = createAnimations(this.#layers, createHatLayers(this.#hatSheet, hatId));
 	}
 
 	/**
@@ -178,4 +136,70 @@ export class Bird {
 	isVisible(): boolean {
 		return this.#visible;
 	}
+}
+
+type BirdLayers = ReturnType<typeof createBirdLayers>;
+
+/**
+ * Cut the individual sprites out of the bird sheet
+ */
+function createBirdLayers(birdSheet: PixelGrid) {
+	/**
+	 * @param index Sprite index in the bird sheet
+	 * @param tag Only include this layer when the tag is active
+	 */
+	const layer = (index: number, tag?: string) => new Layer(getLayerPixels(birdSheet, index, SPRITE_SIZE), tag);
+	return {
+		base: layer(0),
+		down: layer(1),
+		heartOne: layer(2),
+		heartTwo: layer(3),
+		heartThree: layer(4),
+		tuftBase: layer(5, "tuft"),
+		tuftDown: layer(6, "tuft"),
+		wingsUp: layer(7),
+		wingsDown: layer(8),
+		happyEye: layer(9),
+	};
+}
+
+/**
+ * Combine the bird and hat layers into frames and animations
+ */
+function createAnimations(layers: BirdLayers, hat: HatLayers): Record<AnimationType, Anim> {
+	const frames = {
+		base: new Frame([layers.base, layers.tuftBase, ...hat.base]),
+		headDown: new Frame([layers.down, layers.tuftDown, ...hat.down]),
+		wingsDown: new Frame([layers.base, layers.tuftBase, layers.wingsDown, ...hat.base]),
+		wingsUp: new Frame([layers.down, layers.tuftDown, layers.wingsUp, ...hat.down]),
+		heartOne: new Frame([layers.base, layers.tuftBase, layers.happyEye, ...hat.base, layers.heartOne]),
+		heartTwo: new Frame([layers.base, layers.tuftBase, layers.happyEye, ...hat.base, layers.heartTwo]),
+		heartThree: new Frame([layers.base, layers.tuftBase, layers.happyEye, ...hat.base, layers.heartThree]),
+	};
+
+	return {
+		STILL: new Anim([frames.base], [1000]),
+		BOB: new Anim(
+			[frames.base, frames.headDown],
+			[420, 420]
+		),
+		FLYING: new Anim(
+			[frames.base, frames.wingsUp, frames.headDown, frames.wingsDown],
+			[30, 80, 30, 60]
+		),
+		HEART: new Anim(
+			[
+				frames.heartOne,
+				frames.heartTwo,
+				frames.heartThree,
+				frames.heartTwo,
+				frames.heartThree,
+				frames.heartTwo,
+				frames.heartThree,
+				frames.heartTwo,
+			],
+			[60, 80, 250, 250, 250, 250, 250, 250],
+			false
+		),
+	};
 }
