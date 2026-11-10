@@ -8,19 +8,20 @@
   "sideEffects": false,
   "exports": {
     ".": {
-      "types": "./index.d.ts",
-      "default": "./src/index.js"
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
     }
   },
   "files": [
-    "src",
-    "index.d.ts",
+    "dist",
     "LICENSE"
   ],
   "scripts": {
-    "sprites": "node scripts/generate-sprites.js",
-    "demo": "vite demo",
-    "check": "tsc -p jsconfig.json"
+    "build": "tsc",
+    "prepare": "npm run build",
+    "check": "tsc --noEmit && tsc -p scripts",
+    "sprites": "node scripts/generate-sprites.ts",
+    "demo": "vite demo"
   },
   "devDependencies": {
     "@types/node": "^26.6.6",

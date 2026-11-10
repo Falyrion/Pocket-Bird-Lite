@@ -1,5 +1,5 @@
-import Layer from "./animation/layer.js";
-import { getLayerPixels } from "./util.js";
+import Layer from "./animation/layer.ts";
+import { getLayerPixels, type PixelGrid } from "./util.ts";
 
 const HAT_WIDTH = 12;
 
@@ -17,41 +17,38 @@ export const HAT = {
 	VIKING_HELMET: "viking-helmet",
 	STRAW_HAT: "straw-hat",
 	CORDOVAN_HAT: "cordovan-hat"
-};
+} as const;
 
-/**
- * @param {string} hatId
- * @returns {boolean}
- */
-export function isValidHat(hatId) {
-	return Object.values(HAT).includes(hatId);
+export type HatId = typeof HAT[keyof typeof HAT];
+
+const HAT_IDS: readonly string[] = Object.values(HAT);
+
+export function isValidHat(id: string): id is HatId {
+	return HAT_IDS.includes(id);
+}
+
+export interface HatLayers {
+	/** Layers for the bird's normal pose */
+	base: Layer[];
+	/** Layers for the bird's head-down pose */
+	down: Layer[];
 }
 
 /**
- * Build the hat layers for a single hat, for the bird's normal and head-down poses
- * @param {string[][]} spriteSheet
- * @param {string} hatId
- * @returns {{ base: Layer[], down: Layer[] }}
+ * Build the hat layers for a single hat
  */
-export function createHatLayers(spriteSheet, hatId) {
+export function createHatLayers(spriteSheet: PixelGrid, hatId: HatId): HatLayers {
 	if (hatId === HAT.NONE) {
 		return { base: [], down: [] };
 	}
-	const index = Object.values(HAT).indexOf(hatId) - 1;
+	const index = HAT_IDS.indexOf(hatId) - 1;
 	return {
 		base: [buildHatLayer(spriteSheet, hatId, index)],
 		down: [buildHatLayer(spriteSheet, hatId, index, 1)],
 	};
 }
 
-/**
- * @param {string[][]} spriteSheet
- * @param {string} hatId
- * @param {number} hatIndex
- * @param {number} [yOffset=0]
- * @returns {Layer}
- */
-function buildHatLayer(spriteSheet, hatId, hatIndex, yOffset = 0) {
+function buildHatLayer(spriteSheet: PixelGrid, hatId: HatId, hatIndex: number, yOffset = 0): Layer {
 	const LEFT_PADDING = 6;
 	const RIGHT_PADDING = 14;
 	const TOP_PADDING = 5 + yOffset;
@@ -66,16 +63,10 @@ function buildHatLayer(spriteSheet, hatId, hatIndex, yOffset = 0) {
 
 /**
  * Add transparent padding around the pixel array
- * @param {string[][]} pixels
- * @param {number} top
- * @param {number} bottom
- * @param {number} left
- * @param {number} right
- * @returns {string[][]}
  */
-function pad(pixels, top, bottom, left, right) {
+function pad(pixels: PixelGrid, top: number, bottom: number, left: number, right: number): PixelGrid {
 	const rowLength = pixels[0].length + left + right;
-	const emptyRow = () => Array(rowLength).fill("transparent");
+	const emptyRow = (): string[] => Array(rowLength).fill("transparent");
 	return [
 		...Array.from({ length: top }, emptyRow),
 		...pixels.map((row) => [...Array(left).fill("transparent"), ...row, ...Array(right).fill("transparent")]),
@@ -85,10 +76,8 @@ function pad(pixels, top, bottom, left, right) {
 
 /**
  * Draw a white outline around non-transparent pixels (sides and top only)
- * @param {string[][]} pixels
- * @return {string[][]}
  */
-function drawOutline(pixels) {
+function drawOutline(pixels: PixelGrid): PixelGrid {
 	const neighborOffsets = [
 		[-1, 0],
 		[1, 0],

@@ -1,9 +1,12 @@
 // Bird species: each one is a colour palette (a column in sprites/species.png)
 // applied to the shared bird sprite. "tuft" species get an extra head tuft.
 
-/** @typedef {{ name: string, spriteIndex: number, tags: string[] }} Species */
+export interface Species {
+	readonly name: string;
+	readonly spriteIndex: number;
+	readonly tags: readonly string[];
+}
 
-/** @type {Record<string, Species>} */
 export const SPECIES = {
 	bluebird: { name: "Eastern Bluebird", spriteIndex: 0, tags: [] },
 	shimaEnaga: { name: "Shima Enaga", spriteIndex: 1, tags: [] },
@@ -39,4 +42,10 @@ export const SPECIES = {
 	pride: { name: "Pride", spriteIndex: 31, tags: [] },
 	trans: { name: "Trans", spriteIndex: 32, tags: [] },
 	pidgey: { name: "Pidgey", spriteIndex: 33, tags: [] },
-};
+} as const satisfies Record<string, Species>;
+
+export type SpeciesId = keyof typeof SPECIES;
+
+export function isValidSpecies(id: string): id is SpeciesId {
+	return Object.hasOwn(SPECIES, id);
+}

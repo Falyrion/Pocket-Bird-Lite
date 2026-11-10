@@ -1,13 +1,19 @@
-// @ts-check
-// Reads the sprite PNGs and writes src/sprites.generated.js.
-// Run with `npm run sprites` after editing anything in sprites/ or src/species.js.
+// Reads the sprite PNGs and writes src/sprites.generated.ts.
+// Run with `npm run sprites` after editing anything in sprites/ or src/species.ts.
 
-import { readFileSync, writeFileSync } from "fs";
+import { readFileSync, writeFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
 import { PNG } from "pngjs";
-import { SPECIES } from "../src/species.js";
+import { SPECIES } from "../src/species.ts";
+
+interface EncodedSheet {
+	cellWidth: number;
+	legend: string[];
+	rows: string[];
+}
 
 const SPRITES_DIR = new URL("../sprites/", import.meta.url);
-const OUTPUT = new URL("../src/sprites.generated.js", import.meta.url);
+const OUTPUT = new URL("../src/sprites.generated.ts", import.meta.url);
 const SPRITE_WIDTH = 32;
 
 // Characters used to encode pixels; excludes `"` and `\` so rows are plain string literals
@@ -15,18 +21,14 @@ const ALPHABET = Array.from({ length: 126 - 35 + 1 }, (_, i) => String.fromCharC
 	.filter((c) => c !== "\\")
 	.join("");
 
-/** @param {string} file */
-function readPng(file) {
+function readPng(file: string): PNG {
 	return PNG.sync.read(readFileSync(new URL(file, SPRITES_DIR)));
 }
 
 /**
- * @param {PNG} image
- * @param {number} x
- * @param {number} y
- * @returns {string} Hex colour, or "transparent"
+ * @returns Hex colour, or "transparent"
  */
-function colorAt(image, x, y) {
+function colorAt(image: PNG, x: number, y: number): string {
 	const i = (y * image.width + x) * 4;
 	if (image.data[i + 3] === 0) {
 		return "transparent";
@@ -38,12 +40,10 @@ function colorAt(image, x, y) {
 /**
  * Map each colour of the first (base) bird sprite to the position where it first appears.
  * Those positions are the palette slots that species.png recolours.
- * @param {PNG} birdSheet
- * @returns {Map<string, string>} colour -> "row x col" slot key
+ * @returns colour -> "row x col" slot key
  */
-function createTemplateMapping(birdSheet) {
-	/** @type {Map<string, string>} */
-	const mapping = new Map();
+function createTemplateMapping(birdSheet: PNG): Map<string, string> {
+	const mapping = new Map<string, string>();
 	for (let y = 0; y < birdSheet.height; y++) {
 		for (let x = 0; x < SPRITE_WIDTH; x++) {
 			const color = colorAt(birdSheet, x, y);
@@ -57,17 +57,13 @@ function createTemplateMapping(birdSheet) {
 
 /**
  * Encode a sprite sheet as a legend of cell values plus one string per row
- * @param {PNG} image
- * @param {Map<string, string>} [mapping] Optional colour -> palette slot mapping
+ * @param mapping Optional colour -> palette slot mapping
  */
-function encodeSheet(image, mapping = new Map()) {
-	/** @type {string[]} */
-	const legend = [];
-	/** @type {number[][]} */
-	const indices = [];
+function encodeSheet(image: PNG, mapping = new Map<string, string>()): EncodedSheet {
+	const legend: string[] = [];
+	const indices: number[][] = [];
 	for (let y = 0; y < image.height; y++) {
-		/** @type {number[]} */
-		const row = [];
+		const row: number[] = [];
 		for (let x = 0; x < image.width; x++) {
 			const color = colorAt(image, x, y);
 			const value = mapping.get(color) ?? color;
@@ -84,7 +80,7 @@ function encodeSheet(image, mapping = new Map()) {
 	if (legend.length > ALPHABET.length ** 2) {
 		throw new Error(`Too many distinct colours in sprite sheet (${legend.length})`);
 	}
-	const encode = (/** @type {number} */ i) => cellWidth === 1
+	const encode = (i: number) => cellWidth === 1
 		? ALPHABET[i]
 		: ALPHABET[Math.floor(i / ALPHABET.length)] + ALPHABET[i % ALPHABET.length];
 	const rows = indices.map((row) => row.map(encode).join(""));
@@ -93,19 +89,18 @@ function encodeSheet(image, mapping = new Map()) {
 
 /**
  * Read the palette column of a species, keeping only the slots the bird sprite uses
- * @param {PNG} speciesSheet
- * @param {number} spriteIndex
- * @param {Set<string>} slots
- * @returns {Record<string, string>}
  */
-function extractPalette(speciesSheet, spriteIndex, slots) {
-	/** @type {Record<string, string>} */
-	const palette = {};
+function extractPalette(speciesSheet: PNG, spriteIndex: number, slots: Set<string>): Record<string, string> {
+	const palette: Record<string, string> = {};
 	for (const slot of slots) {
 		const [y, x] = slot.split("x").map(Number);
 		palette[slot] = colorAt(speciesSheet, spriteIndex * SPRITE_WIDTH + x, y);
 	}
 	return palette;
+}
+
+function formatSheet(sheet: EncodedSheet): string {
+	return `{\n\tcellWidth: ${sheet.cellWidth},\n\tlegend: ${JSON.stringify(sheet.legend)},\n\trows: [\n${sheet.rows.map((r) => `\t\t${JSON.stringify(r)},`).join("\n")}\n\t],\n}`;
 }
 
 const birdSheet = readPng("birb.png");
@@ -115,30 +110,27 @@ const speciesSheet = readPng("species.png");
 const mapping = createTemplateMapping(birdSheet);
 const slots = new Set(mapping.values());
 
-const palettes = Object.fromEntries(
-	Object.entries(SPECIES).map(([id, species]) => [id, extractPalette(speciesSheet, species.spriteIndex, slots)])
-);
+const palettes = Object.entries(SPECIES).map(([id, species]) => [id, extractPalette(speciesSheet, species.spriteIndex, slots)] as const);
 
-/** @param {{ cellWidth: number, legend: string[], rows: string[] }} sheet */
-function formatSheet(sheet) {
-	return `{\n\tcellWidth: ${sheet.cellWidth},\n\tlegend: ${JSON.stringify(sheet.legend)},\n\trows: [\n${sheet.rows.map((r) => `\t\t${JSON.stringify(r)},`).join("\n")}\n\t],\n}`;
-}
+const output = `// Generated by scripts/generate-sprites.ts from sprites/*.png. Do not edit by hand.
 
-const output = `// Generated by scripts/generate-sprites.js from sprites/*.png. Do not edit by hand.
+import type { EncodedSheet } from "./sprites.ts";
+import type { SpeciesId } from "./species.ts";
+import type { Palette } from "./util.ts";
 
 export const ALPHABET = ${JSON.stringify(ALPHABET)};
 
 /** Bird sprite sheet; cells are palette slot keys or literal colours */
-export const BIRD_SHEET = ${formatSheet(encodeSheet(birdSheet, mapping))};
+export const BIRD_SHEET: EncodedSheet = ${formatSheet(encodeSheet(birdSheet, mapping))};
 
 /** Hat sprite sheet; cells are literal colours */
-export const HAT_SHEET = ${formatSheet(encodeSheet(hatSheet))};
+export const HAT_SHEET: EncodedSheet = ${formatSheet(encodeSheet(hatSheet))};
 
-/** @type {Record<string, Record<string, string>>} Palette slot -> colour, per species */
-export const PALETTES = {
-${Object.entries(palettes).map(([id, p]) => `\t${id}: ${JSON.stringify(p)},`).join("\n")}
+/** Palette slot -> colour, per species */
+export const PALETTES: Record<SpeciesId, Palette> = {
+${palettes.map(([id, p]) => `\t${id}: ${JSON.stringify(p)},`).join("\n")}
 };
 `;
 
 writeFileSync(OUTPUT, output);
-console.log(`Wrote ${OUTPUT.pathname} (${(output.length / 1024).toFixed(1)} KB, ${slots.size} palette slots)`);
+console.log(`Wrote ${fileURLToPath(OUTPUT)} (${(output.length / 1024).toFixed(1)} KB, ${slots.size} palette slots)`);
