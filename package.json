@@ -1,21 +1,32 @@
 {
-  "name": "birb",
+  "name": "pocket-bird-lite",
   "version": "1.0.0",
-  "description": "",
-  "license": "ISC",
-  "author": "Idrees Hassan",
+  "description": "A pixel-art pet bird that flies around the page, lands on elements and can be pet. Stripped-down library build of Pocket Bird by Idrees Hassan.",
+  "license": "MPL-2.0",
+  "author": "Falyrion",
   "type": "module",
+  "sideEffects": false,
+  "exports": {
+    ".": {
+      "types": "./index.d.ts",
+      "default": "./src/index.js"
+    }
+  },
+  "files": [
+    "src",
+    "index.d.ts",
+    "LICENSE"
+  ],
   "scripts": {
-    "build": "node build.js",
-    "dev": "nodemon --watch src --watch package.json --watch stylesheet.css --watch build.js --watch obsidian-manifest.json --watch browser-manifest.json --watch sprites/species.png --exec \"npm run build\"",
-    "sprites": "node sprite-builder.js"
+    "sprites": "node scripts/generate-sprites.js",
+    "demo": "vite demo",
+    "check": "tsc -p jsconfig.json"
   },
   "devDependencies": {
-    "archiver": "^7.0.1",
-    "nodemon": "^3.1.10",
-    "rollup": "^4.52.5"
-  },
-  "dependencies": {
-    "pngjs": "^7.0.0"
+    "@types/node": "^26.6.6",
+    "@types/pngjs": "^6.0.5",
+    "pngjs": "^7.0.0",
+    "typescript": "^7.0.2",
+    "vite": "^8.3.7"
   }
 }

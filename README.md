@@ -1,114 +1,102 @@
-# Pocket Bird
+# Pocket Bird Lite
 
-![License](https://img.shields.io/github/license/IdreesInc/Pocket-Bird)
-[![Chrome Web Store Version](https://img.shields.io/chrome-web-store/v/lbbdngkbbgaecefacpnhnhleggabghak)](https://chromewebstore.google.com/detail/pocket-bird/lbbdngkbbgaecefacpnhnhleggabghak)
-[![Mozilla Add-on Version](https://img.shields.io/amo/v/pocket-bird)](https://addons.mozilla.org/en-US/firefox/addon/pocket-bird/)
-[![Discord](https://img.shields.io/discord/1398471368403583120?logo=discord&logoColor=fff&label=discord&color=5865F2)](https://discord.gg/6yxE9prcNc)
+A stripped-down library version of [Pocket Bird](https://github.com/IdreesInc/Pocket-Bird) by Idrees Hassan: a pixel-art pet bird that flies around the page, lands on elements and can be pet.
 
-![](images/preview.png)
+This fork is meant as a bare minimum plugin to be used in web projects, specifically Vue. It only keeps:
 
-It's a pet bird that hops around your computer, what more could you want?
+- The bird flying around and landing on elements
+- The petting animation (move the cursor back and forth over the bird)
+- Choosing the bird species and hat via hardcoded values
 
-### Get it for [Google Chrome](https://chromewebstore.google.com/detail/pocket-bird/lbbdngkbbgaecefacpnhnhleggabghak) 
+Everything else from the original (menu, field guide, feathers, wardrobe, sticky notes, sound, saving, browser extension / userscript / Obsidian builds) has been removed.
 
-### Get it for [Mozilla Firefox](https://addons.mozilla.org/en-US/firefox/addon/pocket-bird/)
+## Configuration
 
-### Get it for [Obsidian](https://community.obsidian.md/plugins/pocket-bird)
+Edit [src/config.js](src/config.js):
 
-### Get it for [TamperMonkey](https://github.com/IdreesInc/Pocket-Bird#Userscript)
-
-#### Join the [Discord](https://discord.gg/6yxE9prcNc) to help me beta test new features and suggest ideas!
-
-## Features
-
-- A cute little pixel art bird hops around your apps and websites
-- Runs in your browser, so you can use it anywhere including at work or school
-- Catch rare falling feathers to unlock over 30+ different species of birds
-- Find over a dozen adorable hats for your bird to wear
-- Create sticky notes that stay on the page even after you refresh
-- It's all powered by open-source code written by hand
-- And most importantly, you can pet the bird!
-
-![](images/pocket-bird-on-code-block.gif)
-
-## Adoption Guide
-
-### Google Chrome + Microsoft Edge
-
-1. Go to the [Chrome Web Store page](https://chromewebstore.google.com/detail/pocket-bird/lbbdngkbbgaecefacpnhnhleggabghak)
-2. Click "Add to Chrome" (or "Add to Edge" if using Microsoft Edge)
-3. Confirm any permission prompts that appear
-
-### Mozilla Firefox
-1. Go to the [Mozilla Add-ons page](https://addons.mozilla.org/en-US/firefox/addon/pocket-bird/)
-2. Click "Add to Firefox"
-3. Confirm any permission prompts that appear
-
-### Obsidian
-
-1. Go to the [Obsidian Plugins page](https://community.obsidian.md/plugins/pocket-bird)
-2. Click "Add to Obsidian"
-3. Once your Obsidian app opens, click "Install" on the Pocket Bird plugin
-4. Click "Enable" and now you're ready to go!
-
-### Userscript
-
-*Note that this is mainly used for beta testing new features, installation via browser extension is recommended for the best experience.*
-
-1. Install [Tampermonkey](https://www.tampermonkey.net/) on your web browser
-2. Enable the Tampermonkey extension and give it the permissions requested
-3. Install my Pocket Bird script by going to this link and clicking install: [https://github.com/IdreesInc/Pocket-Bird/raw/refs/heads/main/dist/userscript/birb.user.js](https://github.com/IdreesInc/Pocket-Bird/raw/refs/heads/main/dist/userscript/birb.user.js)
-4. Now any websites you visit will have a little bird hopping around!
-
-### Your Own Website
-
-Pocket Bird can also be embedded directly into your own website! Just include the following code snippet anywhere in your HTML:
-
-```html
-<script src="https://cdn.jsdelivr.net/gh/IdreesInc/Pocket-Bird@main/dist/web/birb.embed.js"></script>
+```js
+export const SPECIES = "bluebird";   // see src/species.js
+export const HAT = "none";           // see src/hats.js
+export const LANDING_SELECTORS = ["img", "video"];
+export const LANDING_TOP_MARGIN = 80;
+export const LANDING_MIN_WIDTH = 100;
+export const SCALE = 1;
 ```
 
-## FAQ
+Every value can also be overridden per instance: `createPocketBird({ species: "blueJay", hat: "top-hat" })`.
 
-### How do I pet the bird?
+On tufted species (Tufted Titmouse, Red Cardinal, Blue Jay, Steller's Jay) a hat replaces the tuft.
 
-Simply move your cursor back and forth over your bird until a heart appears! You can also click the bird to open the menu and pet it from there. There may even be a slightly greater chance of finding a feather when your bird is well loved...
+## Usage in Vue
 
-### How do I collect feathers?
+Install it into the Vue project, from a local folder or a git URL:
 
-Feathers will occasionally fall from the top of your window. Clicking on a feather will add a new species to your field guide, allowing you to change the appearance of your pet!
+```bash
+npm install ../Pocket-Bird-Lite
+```
 
-### How do I change my bird's appearance?
+Then add a renderless component and mount it once, e.g. in `App.vue`:
 
-Once you've unlocked new species by collecting feathers, you can change your bird's appearance by opening the Pocket Bird menu (via clicking the bird) and selecting "Field Guide".
+```vue
+<!-- PocketBird.vue -->
+<script setup>
+import { onMounted, onBeforeUnmount } from "vue";
+import { createPocketBird } from "pocket-bird-lite";
 
-### How do I add sticky notes?
+let bird;
+onMounted(() => {
+	bird = createPocketBird();
+});
+onBeforeUnmount(() => {
+	bird?.destroy();
+});
+</script>
 
-Open the Pocket Bird menu by clicking the bird and select "Sticky Note". From there, you can add, edit, and delete notes that will stay on the page even after refreshing.
+<template></template>
+```
 
-### How do I hide the bird?
+The bird attaches its own container to `<body>` (inside a shadow root, so its styles don't leak), so it doesn't matter where the component sits in the tree. Importing the package has no side effects; with Nuxt, render the component client-only.
 
-Open the Pocket Bird menu by clicking the bird and select "Settings". From there, you can toggle the bird's visibility on and off temporarily on the current page.
+## Development
 
-### Why does Pocket Bird need permission to read and change my data on websites I visit?
+```bash
+npm install
+```
 
-If you are running Pocket bird on a browser, the extension needs these permissions in order to insert the bird and sticky notes into your webpages. Pocket Bird does not collect any of your data or browsing history and all data is stored locally on your device!
+```bash
+npm run demo      # demo page with species / hat / scale pickers
+```
 
-## Sites With Pocket Bird
+```bash
+npm run check     # type-check the JSDoc types
+```
 
-Here are some websites where you can find Pocket Bird hopping around:
+```bash
+npm run sprites   # regenerate src/sprites.generated.js after editing sprites/*.png or src/species.js
+```
 
-- [https://grepjason.sh](https://grepjason.sh)
-- [https://binarydigit.net](https://binarydigit.net)
-- [https://melvinsalas.com](https://melvinsalas.com)
-- [https://vijaysvibes.uk](https://vijaysvibes.uk)
-- [https://idreesinc.com](https://idreesinc.com)
+Sprite sources are in `aseprite/`, exported PNGs in `sprites/`.
 
-*If you've added Pocket Bird to your website, let me know and I'll add it to this list!*
+## Layout
 
+```
+src/
+  index.js              createPocketBird(options) → { destroy }
+  config.js             hardcoded defaults
+  behavior.js           idle / hop / fly state machine, landing, petting
+  bird.js               canvas, frames, animations
+  hats.js               hat ids and hat layers
+  species.js            species ids → palette index + tags
+  sprites.js            decodes the generated sprite data
+  sprites.generated.js  generated by scripts/generate-sprites.js
+  styles.js             CSS for the shadow root
+  util.js
+  animation/            Anim, Frame, Layer
+scripts/generate-sprites.js
+sprites/                birb.png, hats.png, species.png
+demo/index.html
+```
 
-## Getting in Touch
+## License
 
-If you'd like to get in touch, check out the [Discord](https://discord.gg/6yxE9prcNc) to suggest features, report bugs, and stay updated on development!
-
-Also feel free to check out my other open-source projects like [Monocraft](https://github.com/IdreesInc/Monocraft), [PicoChat](https://github.com/IdreesInc/PicoChat), and more on [my website](https://idreesinc.com/)!
+[Mozilla Public License 2.0](LICENSE), same as the original project.

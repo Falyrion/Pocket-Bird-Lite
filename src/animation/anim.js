@@ -1,5 +1,4 @@
-import Frame from "./frame.js";
-import { BirdType } from "./sprites.js";
+/** @typedef {import('./frame.js').default} Frame */
 
 class Anim {
 	/**

@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<title>Pocket Bird Lite demo</title>
+	<style>
+		html, body {
+			margin: 0;
+			padding: 0;
+			background-color: #363636;
+			color: #eeeeee;
+			font-family: system-ui, sans-serif;
+		}
+
+		#controls {
+			display: flex;
+			flex-wrap: wrap;
+			gap: 8px;
+			justify-content: center;
+			padding: 16px;
+		}
+
+		#content {
+			text-align: center;
+			padding: 20px;
+		}
+
+		#content img {
+			width: 300px;
+			height: auto;
+			margin: 10px;
+		}
+
+		#spacer {
+			height: 300vh;
+		}
+	</style>
+</head>
+<body>
+	<div id="controls">
+		<select id="species"></select>
+		<select id="hat"></select>
+		<select id="scale">
+			<option value="1">1x</option>
+			<option value="2">2x</option>
+			<option value="3">3x</option>
+			<option value="4">4x</option>
+		</select>
+		<button id="recreate">Recreate bird</button>
+		<button id="destroy">Destroy bird</button>
+		<button id="toggle-images">Remove images</button>
+	</div>
+	<div id="content">
+		<h1>Pocket Bird Lite</h1>
+		<p>Hover back and forth over the bird to pet it.</p>
+		<div id="images">
+			<img src="./images/bird-1.jpg" alt="Bird 1">
+			<img src="./images/bird-2.jpg" alt="Bird 2">
+			<img src="./images/bird-3.jpg" alt="Bird 3">
+		</div>
+	</div>
+	<div id="spacer"></div>
+
+	<script type="module">
+		import { createPocketBird, SPECIES, HAT } from "../src/index.js";
+
+		const speciesSelect = document.getElementById("species");
+		const hatSelect = document.getElementById("hat");
+		for (const [id, { name }] of Object.entries(SPECIES)) {
+			speciesSelect.add(new Option(name, id));
+		}
+		for (const id of Object.values(HAT)) {
+			hatSelect.add(new Option(id, id));
+		}
+
+		let bird = createPocketBird();
+		window.pocketBird = bird;
+
+		const recreate = () => {
+			bird?.destroy();
+			bird = createPocketBird({ species: speciesSelect.value, hat: hatSelect.value, scale: Number(scaleSelect.value) });
+			window.pocketBird = bird;
+		};
+		const scaleSelect = document.getElementById("scale");
+		speciesSelect.addEventListener("change", recreate);
+		hatSelect.addEventListener("change", recreate);
+		scaleSelect.addEventListener("change", recreate);
+		document.getElementById("recreate").addEventListener("click", recreate);
+		document.getElementById("destroy").addEventListener("click", () => {
+			bird?.destroy();
+			bird = null;
+		});
+
+		// Simulates a route change removing the element the bird is sitting on
+		const images = document.getElementById("images");
+		const toggleButton = document.getElementById("toggle-images");
+		let removed = null;
+		toggleButton.addEventListener("click", () => {
+			if (removed) {
+				images.append(...removed);
+				removed = null;
+				toggleButton.textContent = "Remove images";
+			} else {
+				removed = Array.from(images.children);
+				images.replaceChildren();
+				toggleButton.textContent = "Restore images";
+			}
+		});
+	</script>
+</body>
+</html>

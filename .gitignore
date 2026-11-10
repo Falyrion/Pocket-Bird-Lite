@@ -1,12 +1,3 @@
 /node_modules
 .DS_Store
-/dist/birb.bundled.js
-obsidian-test.sh
-obsidian-build.sh
-build-cache.json
 .vscode/settings.json
-aseprite/birb-test.aseprite
-aseprite/wren.aseprite
-aseprite/birb-no-shoulder.aseprite
-aseprite/birb-fat.aseprite
-tools/
