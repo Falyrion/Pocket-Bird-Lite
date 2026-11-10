@@ -32,6 +32,17 @@
 			margin: 10px;
 		}
 
+		#article {
+			max-width: 640px;
+			margin: 0 auto;
+			padding: 0 20px;
+			line-height: 1.6;
+		}
+
+		#article a {
+			color: #9cc8ff;
+		}
+
 		#spacer {
 			height: 300vh;
 		}
@@ -60,6 +71,14 @@
 			<img src="./images/bird-3.jpg" alt="Bird 3">
 		</div>
 	</div>
+	<article id="article">
+		<h2>Text landing</h2>
+		<p>The bird lands on the first line of headings and paragraphs, spread across the width of the <a href="#">actual text</a> rather than the whole block. Wrapped paragraphs like this one only count their first line, so the bird sits right on top of the words.</p>
+		<h3>Short heading</h3>
+		<p>Text narrower than the minimum landing width is skipped, like the heading below.</p>
+		<h3>FAQ</h3>
+		<p>Mixed <strong>bold</strong>, <em>italic</em> and <small>small</small> pieces on one line still count as a single line.</p>
+	</article>
 	<div id="spacer"></div>
 
 	<script type="module">

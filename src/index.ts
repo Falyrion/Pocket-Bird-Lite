@@ -16,11 +16,13 @@ export interface PocketBirdOptions {
 	species?: SpeciesId;
 	/** Hat id, see `HAT`. Defaults to `HAT` in src/config.ts */
 	hat?: HatId;
-	/** CSS selectors for elements the bird can land on. Defaults to `LANDING_SELECTORS` in src/config.ts */
+	/** CSS selectors for elements the bird lands on the top edge of. Defaults to `LANDING_SELECTORS` in src/config.ts */
 	landingSelectors?: readonly string[];
+	/** CSS selectors for elements the bird lands on the first line of text of. Defaults to `TEXT_LANDING_SELECTORS` in src/config.ts */
+	textLandingSelectors?: readonly string[];
 	/** Ignore elements whose top edge is closer than this to the top of the window (px). Defaults to `LANDING_TOP_MARGIN` */
 	landingTopMargin?: number;
-	/** Ignore elements narrower than this (px). Defaults to `LANDING_MIN_WIDTH` */
+	/** Ignore landing surfaces narrower than this (px); for text, the width of the first line. Defaults to `LANDING_MIN_WIDTH` */
 	landingMinWidth?: number;
 	/** Size multiplier. Defaults to `SCALE` */
 	scale?: number;
@@ -59,6 +61,7 @@ export function createPocketBird(options: PocketBirdOptions = {}): PocketBird {
 
 	const behavior = new BirdBehavior(bird, {
 		landingSelectors: options.landingSelectors ?? config.LANDING_SELECTORS,
+		textLandingSelectors: options.textLandingSelectors ?? config.TEXT_LANDING_SELECTORS,
 		landingTopMargin: options.landingTopMargin ?? config.LANDING_TOP_MARGIN,
 		landingMinWidth: options.landingMinWidth ?? config.LANDING_MIN_WIDTH,
 	});

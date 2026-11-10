@@ -18,14 +18,20 @@ export const SPECIES: SpeciesId = "bluebird";
  */
 export const HAT: HatId = "none";
 
-/** CSS selectors for elements the bird can land on */
+/** CSS selectors for elements the bird lands on the top edge of (images, videos, cards, ...) */
 export const LANDING_SELECTORS: readonly string[] = ["img", "video"];
+
+/**
+ * CSS selectors for elements the bird lands on the first line of text of (headings, paragraphs, ...).
+ * Only the width of the text counts, so short text narrower than LANDING_MIN_WIDTH is skipped.
+ */
+export const TEXT_LANDING_SELECTORS: readonly string[] = ["h1", "h2", "h3", "p"];
 
 /** Elements whose top edge is closer than this to the top of the window are ignored (px) */
 export const LANDING_TOP_MARGIN = 80;
 
-/** Elements narrower than this are ignored (px) */
+/** Landing surfaces narrower than this are ignored (px); for text, this is the width of the first line */
 export const LANDING_MIN_WIDTH = 100;
 
 /** Size multiplier for the bird */
-export const SCALE = 1;
+export const SCALE = 2;

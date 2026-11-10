@@ -2,8 +2,10 @@ import { Animations, type Bird } from "./bird.ts";
 import { Directions, getWindowHeight, isMobile } from "./util.ts";
 
 export interface BehaviorOptions {
-	/** CSS selectors for elements the bird can land on */
+	/** CSS selectors for elements the bird lands on the top edge of */
 	landingSelectors: readonly string[];
+	/** CSS selectors for elements the bird lands on the first line of text of */
+	textLandingSelectors: readonly string[];
 	/** Ignore elements whose top is closer than this to the top of the window */
 	landingTopMargin: number;
 	/** Ignore elements narrower than this */
@@ -37,6 +39,19 @@ const States = {
 
 type State = typeof States[keyof typeof States];
 
+/** The surface the bird stands on, in viewport coordinates */
+interface LandingBounds {
+	left: number;
+	right: number;
+	top: number;
+}
+
+interface LandingTarget {
+	element: HTMLElement;
+	/** Land on the first line of text instead of the element's top edge */
+	isText: boolean;
+}
+
 /**
  * Moves the bird around: idling, hopping, flying between elements, and petting.
  */
@@ -57,7 +72,8 @@ export class BirdBehavior {
 	#targetX = 0;
 	#targetY = 0;
 	#focusedElement: HTMLElement | null = null;
-	#focusedBounds = { left: 0, right: 0, top: 0 };
+	#focusedIsText = false;
+	#focusedBounds: LandingBounds = { left: 0, right: 0, top: 0 };
 	#lastActionTimestamp = Date.now();
 	#petStack: number[] = [];
 
@@ -222,7 +238,9 @@ export class BirdBehavior {
 	 */
 	#flyToElement(teleport = false): void {
 		const previousElement = this.#focusedElement;
-		this.#focusedElement = this.#getRandomValidElement();
+		const target = this.#getRandomLandingTarget();
+		this.#focusedElement = target?.element ?? null;
+		this.#focusedIsText = target?.isText ?? false;
 		this.#updateFocusedElementBounds();
 		const x = this.#getFocusedElementRandomX();
 		const y = this.#getFocusedY();
@@ -241,23 +259,46 @@ export class BirdBehavior {
 	/**
 	 * @returns A random visible element to land on, or null if none was found
 	 */
-	#getRandomValidElement(): HTMLElement | null {
-		const { landingSelectors, landingTopMargin, landingMinWidth } = this.#options;
-		if (landingSelectors.length === 0) {
-			return null;
-		}
-		const candidates = Array.from(document.querySelectorAll(landingSelectors.join(", "))).filter((element): element is HTMLElement => {
-			if (!(element instanceof HTMLElement) || element === this.#focusedElement) {
-				return false;
+	#getRandomLandingTarget(): LandingTarget | null {
+		const { landingSelectors, textLandingSelectors, landingTopMargin, landingMinWidth } = this.#options;
+
+		// Element -> isText; text wins if an element matches both lists
+		const targets = new Map<HTMLElement, boolean>();
+		const collect = (selectors: readonly string[], isText: boolean) => {
+			if (selectors.length === 0) {
+				return;
 			}
-			const rect = element.getBoundingClientRect();
-			const inWindow = rect.left >= 0 && rect.top >= landingTopMargin && rect.right <= window.innerWidth && rect.top <= getWindowHeight();
-			if (!inWindow || element.offsetWidth < landingMinWidth) {
-				return false;
+			for (const element of document.querySelectorAll(selectors.join(", "))) {
+				if (element instanceof HTMLElement) {
+					targets.set(element, isText);
+				}
+			}
+		};
+		collect(landingSelectors, false);
+		collect(textLandingSelectors, true);
+
+		const windowHeight = getWindowHeight();
+		const candidates: LandingTarget[] = [];
+		for (const [element, isText] of targets) {
+			if (element === this.#focusedElement) {
+				continue;
+			}
+			// Cheap check on the element's box before measuring its text
+			const box = element.getBoundingClientRect();
+			if (box.bottom < landingTopMargin || box.top > windowHeight) {
+				continue;
+			}
+			const bounds = getLandingBounds(element, isText);
+			const inWindow = bounds.left >= 0 && bounds.right <= window.innerWidth && bounds.top >= landingTopMargin && bounds.top <= windowHeight;
+			if (!inWindow || bounds.right - bounds.left < landingMinWidth) {
+				continue;
 			}
 			const style = window.getComputedStyle(element);
-			return style.display !== "none" && style.visibility !== "hidden" && !(style.opacity && parseFloat(style.opacity) < 0.25);
-		});
+			if (style.display === "none" || style.visibility === "hidden" || (style.opacity && parseFloat(style.opacity) < 0.25)) {
+				continue;
+			}
+			candidates.push({ element, isText });
+		}
 		if (candidates.length === 0) {
 			return null;
 		}
@@ -270,8 +311,7 @@ export class BirdBehavior {
 			this.#focusedBounds = { left: 0, right: window.innerWidth, top: getWindowHeight() };
 			return;
 		}
-		const { left, right, top } = this.#focusedElement.getBoundingClientRect();
-		this.#focusedBounds = { left, right, top };
+		this.#focusedBounds = getLandingBounds(this.#focusedElement, this.#focusedIsText);
 	}
 
 	#getFocusedElementRandomX(): number {
@@ -331,6 +371,60 @@ export class BirdBehavior {
 		this.#bird.setAbsolutePositioned(isAbsolute);
 		this.#bird.setY(this.#birdY);
 	}
+}
+
+/**
+ * Where the bird stands on an element: the first line of text for text targets
+ * (falling back to the element's box if it has no visible text), otherwise the top edge of the box
+ */
+function getLandingBounds(element: HTMLElement, isText: boolean): LandingBounds {
+	if (isText) {
+		const line = getFirstLineBounds(element);
+		if (line) {
+			return line;
+		}
+	}
+	const { left, right, top } = element.getBoundingClientRect();
+	return { left, right, top };
+}
+
+/**
+ * Bounds of the first rendered line of text inside an element
+ * @returns null if the element has no visible text
+ */
+function getFirstLineBounds(element: HTMLElement): LandingBounds | null {
+	const walker = document.createTreeWalker(element, NodeFilter.SHOW_TEXT);
+	const range = document.createRange();
+	let line: LandingBounds | null = null;
+	let lineTop = 0;
+	let lineBottom = 0;
+	for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+		if (!/\S/.test(node.nodeValue ?? "")) {
+			continue;
+		}
+		range.selectNodeContents(node);
+		for (const rect of range.getClientRects()) {
+			if (rect.width === 0 || rect.height === 0) {
+				continue;
+			}
+			if (line === null) {
+				line = { left: rect.left, right: rect.right, top: rect.top };
+				lineTop = rect.top;
+				lineBottom = rect.bottom;
+				continue;
+			}
+			const center = (rect.top + rect.bottom) / 2;
+			if (center < lineTop || center > lineBottom) {
+				// Reached the second line
+				return line;
+			}
+			// Another piece of the first line (e.g. a link or bold text)
+			line.left = Math.min(line.left, rect.left);
+			line.right = Math.max(line.right, rect.right);
+			line.top = Math.min(line.top, rect.top);
+		}
+	}
+	return line;
 }
 
 /**

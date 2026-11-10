@@ -18,12 +18,22 @@ Edit [src/config.ts](src/config.ts), then rebuild with `npm run build`:
 export const SPECIES: SpeciesId = "bluebird";   // see src/species.ts
 export const HAT: HatId = "none";              // see src/hats.ts
 export const LANDING_SELECTORS: readonly string[] = ["img", "video"];
+export const TEXT_LANDING_SELECTORS: readonly string[] = ["h1", "h2", "h3", "p"];
 export const LANDING_TOP_MARGIN = 80;
 export const LANDING_MIN_WIDTH = 100;
-export const SCALE = 1;
+export const SCALE = 2;
 ```
 
 Every value can also be overridden per instance: `createPocketBird({ species: "blueJay", hat: "top-hat" })`. Species and hat ids are typed, so a typo is a compile error.
+
+### Where the bird lands
+
+When idle, the bird picks a random element that matches either selector list and is fully visible in the window (at least `LANDING_TOP_MARGIN` below the top, at least `LANDING_MIN_WIDTH` wide, not hidden or nearly transparent).
+
+- `LANDING_SELECTORS`: the bird stands on the element's top edge, anywhere across its width. Use this for images, videos, cards and other boxes.
+- `TEXT_LANDING_SELECTORS`: the bird stands on the first line of text, only across the width of the words. Use this for headings and paragraphs, which are usually much wider than their text. The minimum width applies to that first line, so very short text is skipped.
+
+If an element matches both lists, it is treated as text. When the element is removed or hidden (e.g. on a route change), the bird flies somewhere else.
 
 On tufted species (Tufted Titmouse, Red Cardinal, Blue Jay, Steller's Jay) a hat replaces the tuft.
 
